@@ -11,7 +11,11 @@ const RATE_LIMIT_MAX_REQUESTS = 12;
 const ALLOWED_POST_FIELDS = ['name', 'score', 'victory', 'worldReached'];
 const ALLOWED_NAME_PATTERN = '/^[A-Z0-9]{1,12}$/';
 
-$storageDir = dirname(__DIR__, 2) . '/storage';
+$storageDir = resolve_storage_dir([
+    getenv('HIGH_SCORE_STORAGE_DIR') ?: null,
+    dirname(__DIR__) . '/storage',
+    dirname(__DIR__, 2) . '/storage',
+]);
 $storageFile = $storageDir . '/highscores.json';
 $rateLimitFile = $storageDir . '/highscore-rate-limit.json';
 $securityLogFile = $storageDir . '/highscore-security.log';
@@ -24,10 +28,6 @@ apply_cors_headers($origin);
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
     exit;
-}
-
-if (!is_dir($storageDir) && !mkdir($storageDir, 0775, true) && !is_dir($storageDir)) {
-    respond(['error' => 'Unable to initialize high score storage.'], 500);
 }
 
 if (!file_exists($storageFile)) {
@@ -159,6 +159,36 @@ function apply_cors_headers(string $origin): void
 
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type');
+}
+
+function resolve_storage_dir(array $candidates): string
+{
+    $attempted = [];
+
+    foreach ($candidates as $candidate) {
+        if (!is_string($candidate) || trim($candidate) === '') {
+            continue;
+        }
+
+        $path = rtrim($candidate, '/');
+        $attempted[] = $path;
+
+        if (is_dir($path)) {
+            if (is_writable($path)) {
+                return $path;
+            }
+            continue;
+        }
+
+        if (@mkdir($path, 0775, true) && is_dir($path) && is_writable($path)) {
+            return $path;
+        }
+    }
+
+    respond([
+        'error' => 'Unable to initialize high score storage.',
+        'attempted' => $attempted,
+    ], 500);
 }
 
 function get_client_ip(): string
