@@ -392,15 +392,23 @@ function shuffleArray<T>(values: T[]): T[] {
   return copy;
 }
 
+function buildSymmetricLayoutOrder(): number[] {
+  return Array.from({ length: 9 }, () => Math.floor(Math.random() * SYMMETRIC_TOP_HALF_LAYOUTS.length));
+}
+
 function buildRooms(): RoomDefinition[] {
   const rooms: RoomDefinition[] = [];
   const bonusOrder = shuffleArray(BONUS_POOL);
   const superPickupOrder = shuffleArray(SUPER_PICKUP_POOL);
+  const symmetricLayoutOrder = ENABLE_SYMMETRIC_LAYOUTS ? buildSymmetricLayoutOrder() : [];
 
   for (let y = 0; y < 3; y += 1) {
     for (let x = 0; x < 3; x += 1) {
       const index = y * 3 + x;
-      const maze = createRoomMaze(x, y, index % ROOM_LAYOUTS.length);
+      const layoutIndex = ENABLE_SYMMETRIC_LAYOUTS
+        ? symmetricLayoutOrder[index]
+        : index % ROOM_LAYOUTS.length;
+      const maze = createRoomMaze(x, y, layoutIndex);
       const bonusType = bonusOrder[index];
       const reachableTiles = ENABLE_SYMMETRIC_LAYOUTS ? findLargestWalkableComponent(maze) : undefined;
       const preferredPlayerSpawn = PLAYER_SPAWNS[index];
