@@ -19,7 +19,7 @@ type GameOverPalette = {
 
 const GAME_OVER_PALETTES: Record<'victory' | 'defeat', GameOverPalette> = {
   victory: {
-    background: '#0c1008',
+    background: '#000000',
     outerFrame: 0x151b0d,
     innerFrame: 0x32401c,
     panelFill: 0x111708,
@@ -31,7 +31,7 @@ const GAME_OVER_PALETTES: Record<'victory' | 'defeat', GameOverPalette> = {
     inputText: '#fff0a8',
   },
   defeat: {
-    background: '#12060a',
+    background: '#000000',
     outerFrame: 0x1a0a0f,
     innerFrame: 0x4a1722,
     panelFill: 0x12070b,

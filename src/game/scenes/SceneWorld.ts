@@ -11,6 +11,7 @@ import { getTouchDirection } from '../input/touchControls';
 import { getGameLayoutState, subscribeToGameLayout, type GameLayoutState } from '../layout';
 import { WorldModel } from '../model/WorldModel';
 import { clearHudSnapshot, setHudSnapshot } from '../ui/hudState';
+import { resolveAssetUrl } from '../utils/assetUrl';
 import { getActiveGamepad } from '../utils/getActiveGamepad';
 import { readGamepadDirection } from '../utils/readGamepadDirection';
 import type { Direction, PickupDefinition, PowerUpType, RoomCoord, SpawnDefinition, SuperPowerUpType, TuningDefinition, WorldDefinition, WorldProgress } from '../types';
@@ -61,44 +62,44 @@ const MIN_DIFFICULTY_OFFSET = -6;
 const MAX_DIFFICULTY_OFFSET = 11;
 const WORLD_PALETTES: WorldPalette[] = [
   {
-    background: '#090512',
-    backdropFill: 0x04010b,
-    roomFloor: 0x05070b,
+    background: '#000000',
+    backdropFill: 0x000000,
+    roomFloor: 0x000000,
     wallTint: 0xffffff,
     lockedWallTint: 0xf3d7a4,
   },
   {
-    background: '#081018',
-    backdropFill: 0x040b12,
-    roomFloor: 0x071118,
+    background: '#000000',
+    backdropFill: 0x000000,
+    roomFloor: 0x000000,
     wallTint: 0x9be2ff,
     lockedWallTint: 0xd7fbff,
   },
   {
-    background: '#130b06',
-    backdropFill: 0x0d0704,
-    roomFloor: 0x100905,
+    background: '#000000',
+    backdropFill: 0x000000,
+    roomFloor: 0x000000,
     wallTint: 0xffbf7c,
     lockedWallTint: 0xffe0a5,
   },
   {
-    background: '#0d1409',
-    backdropFill: 0x091006,
-    roomFloor: 0x0a1207,
+    background: '#000000',
+    backdropFill: 0x000000,
+    roomFloor: 0x000000,
     wallTint: 0xb7e07d,
     lockedWallTint: 0xe9f7b4,
   },
   {
-    background: '#14080f',
-    backdropFill: 0x0f060b,
-    roomFloor: 0x12070d,
+    background: '#000000',
+    backdropFill: 0x000000,
+    roomFloor: 0x000000,
     wallTint: 0xffa8c9,
     lockedWallTint: 0xffd8e8,
   },
   {
-    background: '#10100a',
-    backdropFill: 0x0a0a05,
-    roomFloor: 0x101008,
+    background: '#000000',
+    backdropFill: 0x000000,
+    roomFloor: 0x000000,
     wallTint: 0xf1e18b,
     lockedWallTint: 0xfff2be,
   },
@@ -157,23 +158,23 @@ export class SceneWorld extends Phaser.Scene {
 
   preload(): void {
     registerAudioAssets(this);
-    this.load.image('wall-square', '/walls/wall-square.png');
-    this.load.image('wall-horizontal', '/walls/wall-horizontal.png');
-    this.load.image('wall-vertical', '/walls/wall-vertical.png');
-    this.load.image('wall-locked', '/walls/wall-locked.png');
-    this.load.image('icon-hero', '/icons/hero.png');
-    this.load.image('icon-sword', '/icons/sword.png');
-    this.load.image('icon-magic-sword', '/icons/magic-sword.png');
-    this.load.image('icon-apple', '/icons/apple.png');
-    this.load.image('icon-golden-apple', '/icons/golden-apple.png');
-    this.load.image('icon-key', '/icons/key.png');
-    this.load.image('icon-torch', '/icons/torch.png');
-    this.load.image('icon-golden-torch', '/icons/golden-torch.png');
-    this.load.image('icon-skull', '/icons/skull.png');
-    this.load.image('icon-heart', '/icons/heart.png');
-    this.load.image('icon-magic-boot', '/icons/boot.png');
+    this.load.image('wall-square', resolveAssetUrl('/walls/wall-square.png'));
+    this.load.image('wall-horizontal', resolveAssetUrl('/walls/wall-horizontal.png'));
+    this.load.image('wall-vertical', resolveAssetUrl('/walls/wall-vertical.png'));
+    this.load.image('wall-locked', resolveAssetUrl('/walls/wall-locked.png'));
+    this.load.image('icon-hero', resolveAssetUrl('/icons/hero.png'));
+    this.load.image('icon-sword', resolveAssetUrl('/icons/sword.png'));
+    this.load.image('icon-magic-sword', resolveAssetUrl('/icons/magic-sword.png'));
+    this.load.image('icon-apple', resolveAssetUrl('/icons/apple.png'));
+    this.load.image('icon-golden-apple', resolveAssetUrl('/icons/golden-apple.png'));
+    this.load.image('icon-key', resolveAssetUrl('/icons/key.png'));
+    this.load.image('icon-torch', resolveAssetUrl('/icons/torch.png'));
+    this.load.image('icon-golden-torch', resolveAssetUrl('/icons/golden-torch.png'));
+    this.load.image('icon-skull', resolveAssetUrl('/icons/skull.png'));
+    this.load.image('icon-heart', resolveAssetUrl('/icons/heart.png'));
+    this.load.image('icon-magic-boot', resolveAssetUrl('/icons/boot.png'));
     for (const key of GOAL_ICON_KEYS) {
-      this.load.image(key, `/icons/virtues/${key}.png`);
+      this.load.image(key, resolveAssetUrl(`/icons/virtues/${key}.png`));
     }
   }
 
@@ -935,9 +936,9 @@ export class SceneWorld extends Phaser.Scene {
       lives: this.worldModel.progress.lives,
       gauges: { ...this.player.gauges },
       gaugeIcons: {
-        sword: this.magicSwordKillsRemaining > 0 ? '/icons/magic-sword.png' : '/icons/sword.png',
-        life: this.lifeDrainMultiplier < 1 ? '/icons/golden-apple.png' : '/icons/apple.png',
-        light: this.lightDrainMultiplier < 1 ? '/icons/golden-torch.png' : '/icons/torch.png',
+        sword: this.magicSwordKillsRemaining > 0 ? resolveAssetUrl('/icons/magic-sword.png') : resolveAssetUrl('/icons/sword.png'),
+        life: this.lifeDrainMultiplier < 1 ? resolveAssetUrl('/icons/golden-apple.png') : resolveAssetUrl('/icons/apple.png'),
+        light: this.lightDrainMultiplier < 1 ? resolveAssetUrl('/icons/golden-torch.png') : resolveAssetUrl('/icons/torch.png'),
       },
       worldNumber,
       virtueName: this.currentWorldDefinition.virtueName,

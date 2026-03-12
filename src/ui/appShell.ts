@@ -1,6 +1,7 @@
 import { subscribeToGameSettings, updateGameSettings, type SoundMode } from '../game/settings';
 import type { GameLayoutState } from '../game/layout';
 import type { HudSnapshot } from '../game/ui/hudState';
+import { resolveAssetUrl } from '../game/utils/assetUrl';
 
 type GaugeKey = keyof HudSnapshot['gauges'];
 
@@ -11,9 +12,9 @@ const GAUGE_META: { key: GaugeKey; alt: string }[] = [
 ];
 
 const DEFAULT_GAUGE_ICONS: HudSnapshot['gaugeIcons'] = {
-  sword: '/icons/sword.png',
-  life: '/icons/apple.png',
-  light: '/icons/torch.png',
+  sword: resolveAssetUrl('/icons/sword.png'),
+  life: resolveAssetUrl('/icons/apple.png'),
+  light: resolveAssetUrl('/icons/torch.png'),
 };
 
 export class AppShell {
@@ -134,7 +135,7 @@ export class AppShell {
     this.bootBadge.className = 'mobile-hud__badge';
     const bootIcon = document.createElement('img');
     bootIcon.className = 'mobile-hud__inline-icon';
-    bootIcon.src = '/icons/boot.png';
+    bootIcon.src = resolveAssetUrl('/icons/boot.png');
     bootIcon.alt = 'Bottes magiques';
     this.bootBadge.append(bootIcon);
     topRow.append(scoreCard, mapCard, livesCard, this.bootBadge);
@@ -217,7 +218,7 @@ export class AppShell {
     desktopBootBadge.className = 'desktop-hud__boot-badge';
     const desktopBootIcon = document.createElement('img');
     desktopBootIcon.className = 'desktop-hud__boot-icon';
-    desktopBootIcon.src = '/icons/boot.png';
+    desktopBootIcon.src = resolveAssetUrl('/icons/boot.png');
     desktopBootIcon.alt = 'Bottes magiques';
     desktopBootBadge.append(desktopBootIcon);
     desktopBootCard.append(desktopBootBadge);
@@ -282,7 +283,7 @@ export class AppShell {
     parent.replaceChildren(this.root);
 
     this.worldValue.textContent = 'Donjon 1';
-    this.mobileVirtueIcon.src = '/icons/virtues/virtue-shield.png';
+    this.mobileVirtueIcon.src = resolveAssetUrl('/icons/virtues/virtue-shield.png');
     this.scoreValue.textContent = '000000';
     this.desktopWorldLabel.textContent = 'DONJON';
     this.desktopWorldNumber.textContent = '1';
@@ -346,11 +347,11 @@ export class AppShell {
 
     this.scoreValue.textContent = String(snapshot.score).padStart(6, '0');
     this.worldValue.textContent = `Niveau ${snapshot.worldNumber} : ${snapshot.virtueName}`;
-    this.mobileVirtueIcon.src = `/icons/virtues/${snapshot.virtueIconKey}.png`;
+    this.mobileVirtueIcon.src = resolveAssetUrl(`/icons/virtues/${snapshot.virtueIconKey}.png`);
     this.mobileVirtueIcon.alt = snapshot.virtueName;
     this.desktopWorldNumber.textContent = String(snapshot.worldNumber);
     this.desktopVirtueName.textContent = snapshot.virtueName;
-    this.desktopVirtueIcon.src = `/icons/virtues/${snapshot.virtueIconKey}.png`;
+    this.desktopVirtueIcon.src = resolveAssetUrl(`/icons/virtues/${snapshot.virtueIconKey}.png`);
     this.desktopVirtueIcon.alt = snapshot.virtueName;
     this.desktopScoreValue.textContent = String(snapshot.score).padStart(6, '0');
     this.desktopBootBadge.classList.toggle('is-visible', snapshot.hasMagicBoot);

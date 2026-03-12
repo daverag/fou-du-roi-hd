@@ -458,7 +458,7 @@ canvas {
   display: block;
   width: 46px;
   height: 46px;
-  background-image: url('/icons/heart.png');
+  background-image: url('../icons/heart.png');
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
@@ -558,7 +558,7 @@ canvas {
   display: block;
   width: 30px;
   height: 30px;
-  background-image: url('/icons/heart.png');
+  background-image: url('../icons/heart.png');
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;

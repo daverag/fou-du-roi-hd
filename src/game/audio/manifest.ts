@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import type { SoundMode } from '../settings';
+import { resolveAssetUrl } from '../utils/assetUrl';
 
 export type AudioCueName =
   | 'key'
@@ -29,12 +30,14 @@ export const AUDIO_MANIFEST: AudioManifest = {
     start: ['/sfx/start.mp3'],
   },
   retro: {
-    key: ['/sfx/retro/pickup.wav'],
+    key: ['/sfx/retro/key.wav'],
     apple: ['/sfx/retro/pickup.wav'],
     torch: ['/sfx/retro/powerup.wav'],
     sword: ['/sfx/retro/powerup.wav'],
     win: ['/sfx/retro/powerup.wav'],
     enemy: ['/sfx/retro/eat.wav'],
+    hurt: ['/sfx/retro/die.wav'],
+    gameover: ['/sfx/retro/die.wav'],
   },
 };
 
@@ -49,7 +52,7 @@ export function registerAudioAssets(scene: Phaser.Scene): void {
         return;
       }
 
-      scene.load.audio(buildAudioCueKey(mode, cueName), sources);
+      scene.load.audio(buildAudioCueKey(mode, cueName), sources.map((source) => resolveAssetUrl(source)));
     });
   });
 }

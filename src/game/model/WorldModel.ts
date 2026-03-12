@@ -31,12 +31,21 @@ export class WorldModel {
 
   unlockRandomOtherRoom(excludedRoom: RoomModel): RoomModel | null {
     const candidates = this.rooms.filter((room) => room !== excludedRoom && !room.lockOpened);
+    const fallbackCandidate = !excludedRoom.lockOpened ? excludedRoom : null;
+
     if (candidates.length === 0) {
-      return null;
+      if (!fallbackCandidate) {
+        return null;
+      }
+
+      fallbackCandidate.lockOpened = true;
+      this.progress.cagesOpened += 1;
+      return fallbackCandidate;
     }
 
     const selected = candidates[Math.floor(Math.random() * candidates.length)];
     selected.lockOpened = true;
+    this.progress.cagesOpened += 1;
     return selected;
   }
 
@@ -53,7 +62,6 @@ export class WorldModel {
 
     if (pickup.type === 'key') {
       this.progress.keysCollected += 1;
-      this.progress.cagesOpened += 1;
     }
   }
 

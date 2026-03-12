@@ -4,6 +4,7 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../constants';
 import { getGameSettings } from '../settings';
 import { fetchHighScores, type HighScoreEntry } from '../services/highScoreService';
 import { clearHudSnapshot } from '../ui/hudState';
+import { resolveAssetUrl } from '../utils/assetUrl';
 import { getActiveGamepad } from '../utils/getActiveGamepad';
 
 type InstructionRow = {
@@ -24,13 +25,13 @@ export class SceneTitle extends Phaser.Scene {
 
   preload(): void {
     registerAudioAssets(this);
-    this.load.image('title-hero', '/icons/hero.png');
-    this.load.image('title-skull', '/icons/skull.png');
-    this.load.image('title-sword', '/icons/sword.png');
-    this.load.image('title-apple', '/icons/apple.png');
-    this.load.image('title-torch', '/icons/torch.png');
-    this.load.image('title-key', '/icons/key.png');
-    this.load.image('title-boot', '/icons/boot.png');
+    this.load.image('title-hero', resolveAssetUrl('/icons/hero.png'));
+    this.load.image('title-skull', resolveAssetUrl('/icons/skull.png'));
+    this.load.image('title-sword', resolveAssetUrl('/icons/sword.png'));
+    this.load.image('title-apple', resolveAssetUrl('/icons/apple.png'));
+    this.load.image('title-torch', resolveAssetUrl('/icons/torch.png'));
+    this.load.image('title-key', resolveAssetUrl('/icons/key.png'));
+    this.load.image('title-boot', resolveAssetUrl('/icons/boot.png'));
   }
 
   create(): void {
