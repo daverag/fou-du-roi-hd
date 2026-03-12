@@ -45,6 +45,20 @@ export class SceneTitle extends Phaser.Scene {
     this.drawStartPrompt();
 
     const launch = () => {
+      const soundManager = this.sound as Phaser.Sound.BaseSoundManager & {
+        unlock?: () => void;
+        context?: AudioContext;
+        locked?: boolean;
+      };
+      if (soundManager.locked && typeof soundManager.unlock === 'function') {
+        soundManager.unlock();
+      }
+      if (soundManager.context && soundManager.context.state === 'suspended') {
+        void soundManager.context.resume().catch(() => {
+          // Ignore resume failures; the browser may require another gesture.
+        });
+      }
+
       const soundMode = getGameSettings().soundMode;
       const startCueKey = buildAudioCueKey(soundMode, 'start');
       if (this.cache.audio.exists(startCueKey)) {
