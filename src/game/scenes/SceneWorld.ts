@@ -8,6 +8,7 @@ import { EnemyDirector } from '../entities/EnemyDirector';
 import { PlayerController } from '../entities/PlayerController';
 import { WorldModel } from '../model/WorldModel';
 import { HUDRenderer } from '../systems/HUDRenderer';
+import { getActiveGamepad } from '../utils/getActiveGamepad';
 import type { Direction, PickupDefinition, PowerUpType, RoomCoord, SpawnDefinition, SuperPowerUpType, TuningDefinition, WorldDefinition, WorldProgress } from '../types';
 
 type PickupSprite = Phaser.GameObjects.Shape | Phaser.GameObjects.Container | Phaser.GameObjects.Image;
@@ -566,8 +567,8 @@ export class SceneWorld extends Phaser.Scene {
       return 'down';
     }
 
-    const pad = this.input.gamepad?.getPad(0);
-    if (!pad?.connected) {
+    const pad = getActiveGamepad(this.input);
+    if (!pad) {
       return null;
     }
 

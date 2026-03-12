@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../constants';
+import { getActiveGamepad } from '../utils/getActiveGamepad';
 
 export class SceneTitle extends Phaser.Scene {
   private launchGame?: () => void;
@@ -82,9 +83,9 @@ export class SceneTitle extends Phaser.Scene {
   }
 
   private isGamepadConfirmPressed(): boolean {
-    const pad = this.input.gamepad?.getPad(0);
+    const pad = getActiveGamepad(this.input);
 
-    if (!pad?.connected) {
+    if (!pad) {
       return false;
     }
 
