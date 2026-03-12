@@ -134,6 +134,7 @@ export class SceneWorld extends Phaser.Scene {
   private lifePauseInProgress = false;
   private roomEntryEnemyRevealUntil = 0;
   private pausedByBlur = false;
+  private lastLoggedGamepadDirection: Direction | null = null;
 
   constructor() {
     super('world');
@@ -184,6 +185,7 @@ export class SceneWorld extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.game.events.off(Phaser.Core.Events.BLUR, this.handleGameBlur, this);
       this.game.events.off(Phaser.Core.Events.FOCUS, this.handleGameFocus, this);
+      this.lastLoggedGamepadDirection = null;
     });
   }
 
@@ -572,17 +574,21 @@ export class SceneWorld extends Phaser.Scene {
       return null;
     }
 
+    let direction: Direction | null = null;
+
     if (pad.left) {
-      return 'left';
+      direction = 'left';
+    } else if (pad.right) {
+      direction = 'right';
+    } else if (pad.up) {
+      direction = 'up';
+    } else if (pad.down) {
+      direction = 'down';
     }
-    if (pad.right) {
-      return 'right';
-    }
-    if (pad.up) {
-      return 'up';
-    }
-    if (pad.down) {
-      return 'down';
+
+    if (direction) {
+      this.logGamepadDirection(direction, pad);
+      return direction;
     }
 
     const horizontal = pad.leftStick.x;
@@ -590,14 +596,47 @@ export class SceneWorld extends Phaser.Scene {
     const threshold = SceneWorld.GAMEPAD_AXIS_THRESHOLD;
 
     if (Math.abs(horizontal) >= Math.abs(vertical) && Math.abs(horizontal) >= threshold) {
-      return horizontal < 0 ? 'left' : 'right';
+      direction = horizontal < 0 ? 'left' : 'right';
+      this.logGamepadDirection(direction, pad, { horizontal, vertical });
+      return direction;
     }
 
     if (Math.abs(vertical) >= threshold) {
-      return vertical < 0 ? 'up' : 'down';
+      direction = vertical < 0 ? 'up' : 'down';
+      this.logGamepadDirection(direction, pad, { horizontal, vertical });
+      return direction;
+    }
+
+    if (this.lastLoggedGamepadDirection !== null) {
+      console.info('[gamepad][world] neutral', { index: pad.index, id: pad.id, horizontal, vertical });
+      this.lastLoggedGamepadDirection = null;
     }
 
     return null;
+  }
+
+  private logGamepadDirection(
+    direction: Direction,
+    pad: Phaser.Input.Gamepad.Gamepad,
+    axes?: { horizontal: number; vertical: number },
+  ): void {
+    if (this.lastLoggedGamepadDirection === direction) {
+      return;
+    }
+
+    this.lastLoggedGamepadDirection = direction;
+    console.info('[gamepad][world] direction', {
+      index: pad.index,
+      id: pad.id,
+      direction,
+      axes,
+      dpad: {
+        left: pad.left,
+        right: pad.right,
+        up: pad.up,
+        down: pad.down,
+      },
+    });
   }
 
   private handlePickups(): void {

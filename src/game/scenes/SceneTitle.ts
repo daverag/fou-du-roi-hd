@@ -76,6 +76,7 @@ export class SceneTitle extends Phaser.Scene {
     const confirmPressed = this.isGamepadConfirmPressed();
 
     if (confirmPressed && !this.confirmPressedLastFrame) {
+      console.info('[gamepad][title] confirm pressed');
       this.launchGame();
     }
 

@@ -53,6 +53,7 @@ export class SceneGameOver extends Phaser.Scene {
     const confirmPressed = this.isGamepadConfirmPressed();
 
     if (confirmPressed && !this.confirmPressedLastFrame) {
+      console.info('[gamepad][gameover] confirm pressed');
       this.returnToTitle();
     }
 
