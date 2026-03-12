@@ -87,14 +87,44 @@ const ROOM_LAYOUTS: MazeCellValue[][][] = [
   ]),
 ];
 
+const SYMMETRIC_TOP_HALF_LAYOUTS = [
+  [
+    '1000100000',
+    '1010101110',
+    '1000001000',
+    '1110101011',
+    '1000100000',
+    '1010111011',
+  ],
+  [
+    '1000000000',
+    '1011111011',
+    '1010000000',
+    '1010111110',
+    '1010000000',
+    '1011101011',
+  ],
+  [
+    '1000100000',
+    '1010101011',
+    '1000001000',
+    '1110111110',
+    '1000100000',
+    '1011101011',
+  ],
+] as const;
+const SYMMETRIC_CENTER_ROW_LAYOUTS = [
+  '10001000LGL00010001',
+  '10000010LGL01000001',
+  '10100000LGL00000101',
+] as const;
+
 const DOOR_TILES = {
   up: { tileX: 9, tileY: 0 },
   down: { tileX: 9, tileY: 14 },
   left: { tileX: 0, tileY: 7 },
   right: { tileX: 18, tileY: 7 },
 } as const;
-const SYMMETRIC_LAYOUT_WIDTH = 19;
-const SYMMETRIC_LAYOUT_HEIGHT = 15;
 const SYMMETRIC_CENTER_X = 9;
 const SYMMETRIC_CENTER_Y = 7;
 
@@ -149,57 +179,32 @@ function isWalkable(value: MazeCellValue): boolean {
   return value === 0 || value === 'G';
 }
 
-function createEmptySymmetricLayout(): MazeCellValue[][] {
-  return Array.from({ length: SYMMETRIC_LAYOUT_HEIGHT }, (_, y) =>
-    Array.from({ length: SYMMETRIC_LAYOUT_WIDTH }, (_, x) => {
-      if (y === 0 || y === SYMMETRIC_LAYOUT_HEIGHT - 1 || x === 0 || x === SYMMETRIC_LAYOUT_WIDTH - 1) {
-        return 1;
-      }
-
-      return 0;
-    }),
-  );
-}
-
-function setMirroredCell(cells: MazeCellValue[][], x: number, y: number, value: MazeCellValue): void {
-  const mirroredPositions = [
-    [x, y],
-    [SYMMETRIC_LAYOUT_WIDTH - 1 - x, y],
-    [x, SYMMETRIC_LAYOUT_HEIGHT - 1 - y],
-    [SYMMETRIC_LAYOUT_WIDTH - 1 - x, SYMMETRIC_LAYOUT_HEIGHT - 1 - y],
-  ] as const;
-
-  for (const [targetX, targetY] of mirroredPositions) {
-    cells[targetY][targetX] = value;
-  }
+function mirrorLeftHalf(leftHalf: string, center: string): string {
+  return `${leftHalf}${center}${leftHalf.split('').reverse().join('')}`;
 }
 
 function createSymmetricMazeLayout(layoutSeed: number): MazeCellValue[][] {
-  const cells = createEmptySymmetricLayout();
+  const topHalf = SYMMETRIC_TOP_HALF_LAYOUTS[layoutSeed % SYMMETRIC_TOP_HALF_LAYOUTS.length];
+  const centerRow = SYMMETRIC_CENTER_ROW_LAYOUTS[layoutSeed % SYMMETRIC_CENTER_ROW_LAYOUTS.length];
+  const rows: string[] = ['1111111111111111111'];
 
-  for (let tileY = 1; tileY < SYMMETRIC_LAYOUT_HEIGHT - 1; tileY += 2) {
-    for (let tileX = 1; tileX < SYMMETRIC_LAYOUT_WIDTH - 1; tileX += 1) {
-      cells[tileY][tileX] = 0;
-    }
+  for (const sourceRow of topHalf) {
+    rows.push(mirrorLeftHalf(sourceRow.slice(0, 9), sourceRow[9]));
   }
 
-  for (let tileY = 1; tileY <= 5; tileY += 2) {
-    for (let tileX = 1; tileX <= 7; tileX += 2) {
-      const shouldOpenVertical = ((layoutSeed + tileX * 3 + tileY * 5) % 4) !== 0;
-      if (shouldOpenVertical) {
-        setMirroredCell(cells, tileX, tileY + 1, 0);
-      }
-    }
+  rows.push(centerRow);
+
+  for (let index = topHalf.length - 1; index >= 0; index -= 1) {
+    const sourceRow = topHalf[index];
+    rows.push(mirrorLeftHalf(sourceRow.slice(0, 9), sourceRow[9]));
   }
 
-  for (let tileY = 1; tileY < SYMMETRIC_LAYOUT_HEIGHT - 1; tileY += 1) {
-    cells[tileY][SYMMETRIC_CENTER_X] = 0;
-  }
+  rows.push('1111111111111111111');
 
-  cells[SYMMETRIC_CENTER_Y][SYMMETRIC_CENTER_X - 1] = 'L';
-  cells[SYMMETRIC_CENTER_Y][SYMMETRIC_CENTER_X] = 'G';
-  cells[SYMMETRIC_CENTER_Y][SYMMETRIC_CENTER_X + 1] = 'L';
-
+  const cells = buildMaze(rows);
+  cells[SYMMETRIC_CENTER_Y - 1][SYMMETRIC_CENTER_X] = 1;
+  cells[SYMMETRIC_CENTER_Y + 1][SYMMETRIC_CENTER_X] = 1;
+  cells[9][9] = 0;
   return cells;
 }
 
@@ -240,8 +245,83 @@ function createRoomMaze(x: number, y: number, layoutIndex: number): MazeDefiniti
   };
 }
 
-function findNearestWalkable(maze: MazeDefinition, preferred: SpawnDefinition): SpawnDefinition {
-  if (isWalkable(maze.cells[preferred.tileY]?.[preferred.tileX] as MazeCellValue | undefined ?? 1)) {
+function toTileKey(tileX: number, tileY: number): string {
+  return `${tileX},${tileY}`;
+}
+
+function getWalkableComponent(maze: MazeDefinition, start: SpawnDefinition): Set<string> {
+  const queue: SpawnDefinition[] = [start];
+  const visited = new Set<string>([toTileKey(start.tileX, start.tileY)]);
+
+  while (queue.length > 0) {
+    const current = queue.shift() as SpawnDefinition;
+    const neighbors = [
+      { tileX: current.tileX + 1, tileY: current.tileY },
+      { tileX: current.tileX - 1, tileY: current.tileY },
+      { tileX: current.tileX, tileY: current.tileY + 1 },
+      { tileX: current.tileX, tileY: current.tileY - 1 },
+    ];
+
+    for (const neighbor of neighbors) {
+      if (
+        neighbor.tileX < 0
+        || neighbor.tileY < 0
+        || neighbor.tileX >= maze.width
+        || neighbor.tileY >= maze.height
+        || !isWalkable(maze.cells[neighbor.tileY][neighbor.tileX])
+      ) {
+        continue;
+      }
+
+      const key = toTileKey(neighbor.tileX, neighbor.tileY);
+      if (visited.has(key)) {
+        continue;
+      }
+
+      visited.add(key);
+      queue.push(neighbor);
+    }
+  }
+
+  return visited;
+}
+
+function findLargestWalkableComponent(maze: MazeDefinition): Set<string> {
+  const visited = new Set<string>();
+  let largestComponent = new Set<string>();
+
+  for (let tileY = 0; tileY < maze.height; tileY += 1) {
+    for (let tileX = 0; tileX < maze.width; tileX += 1) {
+      if (!isWalkable(maze.cells[tileY][tileX])) {
+        continue;
+      }
+
+      const startKey = toTileKey(tileX, tileY);
+      if (visited.has(startKey)) {
+        continue;
+      }
+
+      const component = getWalkableComponent(maze, { tileX, tileY });
+      component.forEach((key) => visited.add(key));
+      if (component.size > largestComponent.size) {
+        largestComponent = component;
+      }
+    }
+  }
+
+  return largestComponent;
+}
+
+function findNearestWalkable(
+  maze: MazeDefinition,
+  preferred: SpawnDefinition,
+  allowedTiles?: Set<string>,
+): SpawnDefinition {
+  const preferredKey = toTileKey(preferred.tileX, preferred.tileY);
+  if (
+    isWalkable(maze.cells[preferred.tileY]?.[preferred.tileX] as MazeCellValue | undefined ?? 1)
+    && (!allowedTiles || allowedTiles.has(preferredKey))
+  ) {
     return preferred;
   }
 
@@ -251,6 +331,9 @@ function findNearestWalkable(maze: MazeDefinition, preferred: SpawnDefinition): 
   for (let tileY = 0; tileY < maze.height; tileY += 1) {
     for (let tileX = 0; tileX < maze.width; tileX += 1) {
       if (!isWalkable(maze.cells[tileY][tileX])) {
+        continue;
+      }
+      if (allowedTiles && !allowedTiles.has(toTileKey(tileX, tileY))) {
         continue;
       }
 
@@ -282,10 +365,13 @@ function listWalkableTiles(maze: MazeDefinition): SpawnDefinition[] {
   return walkable;
 }
 
-function pickRandomWalkable(maze: MazeDefinition, blocked: SpawnDefinition[]): SpawnDefinition {
+function pickRandomWalkable(maze: MazeDefinition, blocked: SpawnDefinition[], allowedTiles?: Set<string>): SpawnDefinition {
   const blockedKeys = new Set(blocked.map((spawn) => `${spawn.tileX},${spawn.tileY}`));
   const candidates = listWalkableTiles(maze).filter((spawn) => {
     if (blockedKeys.has(`${spawn.tileX},${spawn.tileY}`)) {
+      return false;
+    }
+    if (allowedTiles && !allowedTiles.has(toTileKey(spawn.tileX, spawn.tileY))) {
       return false;
     }
 
@@ -316,14 +402,16 @@ function buildRooms(): RoomDefinition[] {
       const index = y * 3 + x;
       const maze = createRoomMaze(x, y, index % ROOM_LAYOUTS.length);
       const bonusType = bonusOrder[index];
-      const playerSpawn = findNearestWalkable(maze, PLAYER_SPAWNS[index]);
-      const keySpawn = pickRandomWalkable(maze, [playerSpawn]);
-      const swordSpawn = pickRandomWalkable(maze, [playerSpawn, keySpawn]);
-      const bonusSpawn = pickRandomWalkable(maze, [playerSpawn, keySpawn, swordSpawn]);
+      const reachableTiles = ENABLE_SYMMETRIC_LAYOUTS ? findLargestWalkableComponent(maze) : undefined;
+      const preferredPlayerSpawn = PLAYER_SPAWNS[index];
+      const playerSpawn = findNearestWalkable(maze, preferredPlayerSpawn, reachableTiles);
+      const keySpawn = pickRandomWalkable(maze, [playerSpawn], reachableTiles);
+      const swordSpawn = pickRandomWalkable(maze, [playerSpawn, keySpawn], reachableTiles);
+      const bonusSpawn = pickRandomWalkable(maze, [playerSpawn, keySpawn, swordSpawn], reachableTiles);
       const superPickup = {
         id: `super-${index}`,
         type: superPickupOrder[index],
-        spawn: pickRandomWalkable(maze, [playerSpawn, keySpawn, swordSpawn, bonusSpawn]),
+        spawn: pickRandomWalkable(maze, [playerSpawn, keySpawn, swordSpawn, bonusSpawn], reachableTiles),
       } satisfies PickupDefinition;
       const pickups: PickupDefinition[] = [
         { id: 'key', type: 'key', spawn: keySpawn },
@@ -335,7 +423,7 @@ function buildRooms(): RoomDefinition[] {
         coord: { x: x as 0 | 1 | 2, y: y as 0 | 1 | 2 },
         maze,
         playerSpawn,
-        enemySpawns: ENEMY_SPAWNS[index % ENEMY_SPAWNS.length].map((spawn) => findNearestWalkable(maze, spawn)),
+        enemySpawns: ENEMY_SPAWNS[index % ENEMY_SPAWNS.length].map((spawn) => findNearestWalkable(maze, spawn, reachableTiles)),
         pickups,
         superPickup,
         cageIndex: index,
