@@ -25,6 +25,7 @@ export class EnemyController {
   private homeTile: Phaser.Math.Vector2;
   private scatterTarget: Phaser.Math.Vector2;
   private readonly baseColor: number;
+  private decisionMistakeChance: number;
   private currentDirection: Direction = 'left';
   private respawnEndsAt = 0;
   private nextTargetTile: Phaser.Math.Vector2 | null = null;
@@ -39,6 +40,7 @@ export class EnemyController {
     color: number,
     profile: EnemyProfile,
     scatterTarget: Phaser.Math.Vector2,
+    decisionMistakeChance: number,
   ) {
     const position = maze.tileToWorld(tileX, tileY);
     this.warningAura = scene.add.ellipse(position.x, position.y, maze.tileSize * 1.9, maze.tileSize * 1.9, 0xff2f2f, 0);
@@ -53,6 +55,7 @@ export class EnemyController {
     this.profile = profile;
     this.homeTile = new Phaser.Math.Vector2(tileX, tileY);
     this.scatterTarget = scatterTarget;
+    this.decisionMistakeChance = decisionMistakeChance;
     this.refreshTint();
   }
 
@@ -142,6 +145,10 @@ export class EnemyController {
     this.refreshTint();
   }
 
+  setDecisionMistakeChance(decisionMistakeChance: number): void {
+    this.decisionMistakeChance = Phaser.Math.Clamp(decisionMistakeChance, 0, 0.95);
+  }
+
   private chooseDirection(currentTile: Phaser.Math.Vector2, playerTile: Phaser.Math.Vector2, playerDirection: Direction, allowReverse = false): Direction {
     const nonReverseCandidates = ALL_DIRECTIONS.filter((direction) => !this.isReverse(direction) && this.canMoveToInteriorAnchor(currentTile.x, currentTile.y, direction));
     const candidates = nonReverseCandidates.length > 0
@@ -177,6 +184,10 @@ export class EnemyController {
       const distanceB = Phaser.Math.Distance.Between(bTile.x, bTile.y, target.x, target.y);
       return distanceA - distanceB;
     });
+
+    if (candidates[1] && Math.random() < this.decisionMistakeChance) {
+      return candidates[1];
+    }
 
     if (this.profile === 'erratic' && Math.random() > 0.66 && candidates[1]) {
       return candidates[1];

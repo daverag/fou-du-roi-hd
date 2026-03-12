@@ -82,6 +82,7 @@ export type TuningDefinition = {
   enemySpeed: number;
   vulnerableEnemySpeed: number;
   respawnEnemySpeed: number;
+  enemyDecisionMistakeChance: number;
   swordDurationMs: number;
   lifeDrainPerSecond: number;
   lightDrainPerSecond: number;

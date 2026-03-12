@@ -14,9 +14,11 @@ type GaugeBarVisual = {
 };
 
 export class HUDRenderer {
+  private readonly objects: Phaser.GameObjects.GameObject[] = [];
   private readonly scoreText: Phaser.GameObjects.Text;
   private readonly roomText: Phaser.GameObjects.Text;
   private readonly virtueIcon: Phaser.GameObjects.Image;
+  private readonly magicBootIcon: Phaser.GameObjects.Image;
   private readonly gaugeBars: Record<keyof GaugeValues, GaugeBarVisual>;
   private readonly roomGrid: GridCellVisual[] = [];
   private readonly lifeIcons: Phaser.GameObjects.Image[] = [];
@@ -33,49 +35,53 @@ export class HUDRenderer {
     const gaugeY = 330;
     const gaugeSpacing = 38;
 
-    this.scene.add.rectangle(sidebarX, 328, panelWidth, 572, 0x09040d, 0.84);
-    this.scene.add.rectangle(sidebarX, 150, panelWidth - 10, 2, 0xffffff, 0.08);
-    this.scene.add.rectangle(sidebarX, 272, panelWidth - 10, 2, 0xffffff, 0.08);
-    this.scene.add.rectangle(scorePanelX, scorePanelY, scorePanelWidth, scorePanelHeight, 0x140508, 0.96);
-    this.scene.add.rectangle(scorePanelX, scorePanelY, scorePanelWidth - 18, scorePanelHeight - 18, 0xffffff, 0.03);
-    this.scene.add.rectangle(sidebarX - 22, worldPanelY, 42, 40, 0xffffff, 0.04);
+    this.track(this.scene.add.rectangle(sidebarX, 328, panelWidth, 572, 0x09040d, 0.84));
+    this.track(this.scene.add.rectangle(sidebarX, 150, panelWidth - 10, 2, 0xffffff, 0.08));
+    this.track(this.scene.add.rectangle(sidebarX, 272, panelWidth - 10, 2, 0xffffff, 0.08));
+    this.track(this.scene.add.rectangle(scorePanelX, scorePanelY, scorePanelWidth, scorePanelHeight, 0x140508, 0.96));
+    this.track(this.scene.add.rectangle(scorePanelX, scorePanelY, scorePanelWidth - 18, scorePanelHeight - 18, 0xffffff, 0.03));
+    this.track(this.scene.add.rectangle(sidebarX - 22, worldPanelY, 42, 40, 0xffffff, 0.04));
 
-    this.scene.add.text(scorePanelX - 112, scorePanelY - 25, 'SCORE', {
+    this.track(this.scene.add.text(scorePanelX - 112, scorePanelY - 25, 'SCORE', {
       fontFamily: 'Courier New',
       fontSize: '18px',
       color: '#ffe7a4',
       stroke: '#3a180b',
       strokeThickness: 4,
-    }).setOrigin(0.5);
+    }).setOrigin(0.5));
 
-    this.scene.add.text(scorePanelX + 104, scorePanelY - 25, 'VIES', {
+    this.track(this.scene.add.text(scorePanelX + 104, scorePanelY - 25, 'VIES', {
       fontFamily: 'Courier New',
       fontSize: '18px',
       color: '#ffe7a4',
       stroke: '#3a180b',
       strokeThickness: 4,
-    }).setOrigin(0.5);
+    }).setOrigin(0.5));
 
-    this.scene.add.rectangle(scorePanelX + 28, scorePanelY, 2, scorePanelHeight - 26, 0xffffff, 0.08);
+    this.track(this.scene.add.rectangle(scorePanelX + 28, scorePanelY, 2, scorePanelHeight - 26, 0xffffff, 0.08));
 
-    this.scoreText = this.scene.add.text(scorePanelX - 95, scorePanelY + 8, '000000', {
+    this.scoreText = this.track(this.scene.add.text(scorePanelX - 95, scorePanelY + 8, '000000', {
       fontFamily: 'Courier New',
       fontSize: '46px',
       color: '#ffe3c4',
       stroke: '#4a0c08',
       strokeThickness: 8,
-    }).setOrigin(0.5);
+    }).setOrigin(0.5));
 
-    this.roomText = this.scene.add.text(sidebarX - 22, worldPanelY, '1', {
+    this.roomText = this.track(this.scene.add.text(sidebarX - 22, worldPanelY, '1', {
       fontFamily: 'Courier New',
       fontSize: '28px',
       color: '#ffe7a4',
       stroke: '#4a0c08',
       strokeThickness: 6,
-    }).setOrigin(0.5);
+    }).setOrigin(0.5));
 
-    this.virtueIcon = this.scene.add.image(sidebarX + 24, worldPanelY, 'virtue-shield');
+    this.virtueIcon = this.track(this.scene.add.image(sidebarX + 24, worldPanelY, 'virtue-shield'));
     this.virtueIcon.setScale(Math.min(42 / this.virtueIcon.width, 42 / this.virtueIcon.height));
+
+    this.magicBootIcon = this.track(this.scene.add.image(72, 888, 'icon-magic-boot'));
+    this.magicBootIcon.setScale(Math.min(46 / this.magicBootIcon.width, 46 / this.magicBootIcon.height));
+    this.magicBootIcon.setVisible(false);
 
     this.gaugeBars = {
       sword: this.createGaugeBar(gaugeStartX, gaugeY, 0xe8e8ef),
@@ -89,15 +95,15 @@ export class HUDRenderer {
       const row = Math.floor(index / WORLD_GRID_SIZE);
       const x = 1088 + col * 22;
       const y = 194 + row * 22;
-      const frame = this.scene.add.rectangle(x, y, 18, 18, 0xffffff, 0.07).setOrigin(0, 0);
-      const fill = this.scene.add.rectangle(x + 3, y + 3, 12, 12, 0x702219).setOrigin(0, 0);
+      const frame = this.track(this.scene.add.rectangle(x, y, 18, 18, 0xffffff, 0.07).setOrigin(0, 0));
+      const fill = this.track(this.scene.add.rectangle(x + 3, y + 3, 12, 12, 0x702219).setOrigin(0, 0));
       this.roomGrid.push({ frame, fill });
     }
 
     for (let index = 0; index < 6; index += 1) {
       const row = Math.floor(index / 3);
       const col = index % 3;
-      const icon = this.scene.add.image(scorePanelX + 84 + col * 30, scorePanelY - 6 + row * 26, 'icon-heart');
+      const icon = this.track(this.scene.add.image(scorePanelX + 84 + col * 30, scorePanelY - 6 + row * 26, 'icon-heart'));
       icon.setScale(Math.min(28 / icon.width, 28 / icon.height));
       icon.setVisible(false);
       this.lifeIcons.push(icon);
@@ -117,6 +123,7 @@ export class HUDRenderer {
     this.lifeIcons.forEach((icon, index) => {
       icon.setVisible(index < progress.lives);
     });
+    this.magicBootIcon.setVisible(progress.hasMagicBoot);
     this.roomText.setText(String(roomNumber));
     this.virtueIcon.setTexture(virtueIconKey);
     this.virtueIcon.setScale(Math.min(42 / this.virtueIcon.width, 42 / this.virtueIcon.height));
@@ -125,10 +132,10 @@ export class HUDRenderer {
   }
 
   private createGaugeBar(x: number, y: number, color: number): GaugeBarVisual {
-    this.scene.add.rectangle(x, y, 26, 214, 0x6f1b15).setOrigin(0, 0);
+    this.track(this.scene.add.rectangle(x, y, 26, 214, 0x6f1b15).setOrigin(0, 0));
     const top = y + 6;
     const maxHeight = 200;
-    const fill = this.scene.add.rectangle(x + 5, top, 16, maxHeight, color).setOrigin(0, 0);
+    const fill = this.track(this.scene.add.rectangle(x + 5, top, 16, maxHeight, color).setOrigin(0, 0));
     return { fill, top, maxHeight };
   }
 
@@ -140,8 +147,18 @@ export class HUDRenderer {
   }
 
   private createGaugeIcon(key: string, x: number, y: number, size: number): void {
-    const icon = this.scene.add.image(x, y, key);
+    const icon = this.track(this.scene.add.image(x, y, key));
     icon.setScale(Math.min(size / icon.width, size / icon.height));
+  }
+
+  destroy(): void {
+    this.objects.forEach((object) => object.destroy());
+    this.objects.length = 0;
+  }
+
+  private track<T extends Phaser.GameObjects.GameObject>(object: T): T {
+    this.objects.push(object);
+    return object;
   }
 
   private renderGauges(gauges: GaugeValues): void {

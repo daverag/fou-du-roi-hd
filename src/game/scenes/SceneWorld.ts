@@ -1,3 +1,4 @@
+import { registerAudioAssets } from '../audio/manifest';
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH, INITIAL_GAUGES, TUNING, WORLD_GRID_SIZE } from '../constants';
 import { AudioManager } from '../core/AudioManager';
@@ -6,8 +7,10 @@ import { createWorldDefinition, WORLD_DEFINITION, WORLD_VIRTUES } from '../data/
 import { EnemyController } from '../entities/EnemyController';
 import { EnemyDirector } from '../entities/EnemyDirector';
 import { PlayerController } from '../entities/PlayerController';
+import { getTouchDirection } from '../input/touchControls';
+import { getGameLayoutState, subscribeToGameLayout, type GameLayoutState } from '../layout';
 import { WorldModel } from '../model/WorldModel';
-import { HUDRenderer } from '../systems/HUDRenderer';
+import { clearHudSnapshot, setHudSnapshot } from '../ui/hudState';
 import { getActiveGamepad } from '../utils/getActiveGamepad';
 import type { Direction, PickupDefinition, PowerUpType, RoomCoord, SpawnDefinition, SuperPowerUpType, TuningDefinition, WorldDefinition, WorldProgress } from '../types';
 
@@ -35,8 +38,6 @@ type WorldPalette = {
 const REFERENCE_MAZE = new MazeGrid(WORLD_DEFINITION.rooms[0].maze, TUNING.tileSize, new Phaser.Math.Vector2(0, 0));
 const ROOM_WIDTH = REFERENCE_MAZE.roomWidth;
 const ROOM_HEIGHT = REFERENCE_MAZE.roomHeight;
-const ROOM_ORIGIN_X = 70;
-const ROOM_ORIGIN_Y = 46;
 const ENEMY_COLORS = [0xb14b62, 0xc05f75, 0xb55671, 0xa8465f];
 const GOAL_ICON_KEYS = [
   'virtue-shield',
@@ -54,6 +55,9 @@ const VIRTUE_ICON_BY_NAME = Object.fromEntries(
   WORLD_VIRTUES.map((virtueName, index) => [virtueName, GOAL_ICON_KEYS[index]]),
 ) as Record<(typeof WORLD_VIRTUES)[number], (typeof GOAL_ICON_KEYS)[number]>;
 const MAGIC_BOOT_SPEED_MULTIPLIER = 1.4;
+const BASELINE_DIFFICULTY_WORLD = 7;
+const MIN_DIFFICULTY_OFFSET = -6;
+const MAX_DIFFICULTY_OFFSET = 11;
 const WORLD_PALETTES: WorldPalette[] = [
   {
     background: '#090512',
@@ -99,9 +103,13 @@ const WORLD_PALETTES: WorldPalette[] = [
   },
 ];
 
+function roundScoreToTen(value: number): number {
+  return Math.round(value / 10) * 10;
+}
+
 export class SceneWorld extends Phaser.Scene {
   private static readonly GAMEPAD_AXIS_THRESHOLD = 0.35;
-  private readonly audioManager = new AudioManager();
+  private audioManager!: AudioManager;
   private currentWorldNumber = 1;
   private currentWorldDefinition: WorldDefinition = WORLD_DEFINITION;
   private currentTuning: TuningDefinition = TUNING;
@@ -115,7 +123,6 @@ export class SceneWorld extends Phaser.Scene {
   private backdropInnerFrame?: Phaser.GameObjects.Rectangle;
   private roomLayer!: Phaser.GameObjects.Container;
   private player!: PlayerController;
-  private hud!: HUDRenderer;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private activeMaze!: MazeGrid;
   private activeRoomFrame?: Phaser.GameObjects.Rectangle;
@@ -134,13 +141,21 @@ export class SceneWorld extends Phaser.Scene {
   private lifePauseInProgress = false;
   private roomEntryEnemyRevealUntil = 0;
   private pausedByBlur = false;
+  private manualPauseActive = false;
+  private pauseTogglePressedLastFrame = false;
+  private pauseOverlay?: Phaser.GameObjects.Container;
   private lastLoggedGamepadDirection: Direction | null = null;
+  private layoutState = getGameLayoutState();
+  private roomOriginX = this.layoutState.roomOriginX;
+  private roomOriginY = this.layoutState.roomOriginY;
+  private unsubscribeLayout?: () => void;
 
   constructor() {
     super('world');
   }
 
   preload(): void {
+    registerAudioAssets(this);
     this.load.image('wall-square', '/walls/wall-square.png');
     this.load.image('wall-horizontal', '/walls/wall-horizontal.png');
     this.load.image('wall-vertical', '/walls/wall-vertical.png');
@@ -162,16 +177,20 @@ export class SceneWorld extends Phaser.Scene {
   }
 
   create(): void {
+    this.audioManager = new AudioManager(this);
     this.resetRunState();
     this.gameStarted = false;
     this.awaitingPlayerInput = true;
+    this.layoutState = getGameLayoutState();
+    this.roomOriginX = this.layoutState.roomOriginX;
+    this.roomOriginY = this.layoutState.roomOriginY;
     this.cameras.main.setBackgroundColor(this.currentPalette.background);
+    this.updateCameraForLayout();
     this.drawBackdrop();
     this.roomLayer = this.add.container(0, 0);
     this.buildRoomStates();
     this.buildPlayerAndEnemies();
     this.loadRoom(this.worldModel.currentRoom, 'right', true);
-    this.hud = new HUDRenderer(this);
     this.roomTransitionInProgress = true;
     this.showWorldTitleCard(() => {
       this.roomTransitionInProgress = false;
@@ -179,10 +198,20 @@ export class SceneWorld extends Phaser.Scene {
     this.cursors = this.input.keyboard?.createCursorKeys() as Phaser.Types.Input.Keyboard.CursorKeys;
     this.input.keyboard?.on('keydown', () => this.audioManager.unlock());
     this.input.once('pointerdown', () => this.audioManager.unlock());
+    this.createPauseOverlay();
+    this.pauseTogglePressedLastFrame = this.isPauseTogglePressed();
     this.enemyDirector.start(this.time.now);
+    this.unsubscribeLayout = subscribeToGameLayout((layoutState) => {
+      if (this.scene.isActive()) {
+        this.applyLayoutState(layoutState);
+      }
+    });
     this.game.events.on(Phaser.Core.Events.BLUR, this.handleGameBlur, this);
     this.game.events.on(Phaser.Core.Events.FOCUS, this.handleGameFocus, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.unsubscribeLayout?.();
+      this.unsubscribeLayout = undefined;
+      clearHudSnapshot();
       this.game.events.off(Phaser.Core.Events.BLUR, this.handleGameBlur, this);
       this.game.events.off(Phaser.Core.Events.FOCUS, this.handleGameFocus, this);
       this.lastLoggedGamepadDirection = null;
@@ -217,6 +246,8 @@ export class SceneWorld extends Phaser.Scene {
     this.activePickups = [];
     this.activeGoalVisual = undefined;
     this.pausedByBlur = false;
+    this.manualPauseActive = false;
+    this.pauseTogglePressedLastFrame = false;
   }
 
   private handleGameBlur(): void {
@@ -238,6 +269,12 @@ export class SceneWorld extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
+    this.handlePauseToggle();
+    if (this.manualPauseActive) {
+      this.renderHud();
+      return;
+    }
+
     const deltaSeconds = delta / 1000;
     this.handleInput();
     if (!this.gameStarted || this.lifePauseInProgress) {
@@ -262,16 +299,16 @@ export class SceneWorld extends Phaser.Scene {
   private drawBackdrop(): void {
     this.backdropFill = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, this.currentPalette.backdropFill);
     this.backdropOuterFrame = this.add.rectangle(
-      ROOM_ORIGIN_X + ROOM_WIDTH / 2,
-      ROOM_ORIGIN_Y + ROOM_HEIGHT / 2,
+      this.getRoomCenterX(),
+      this.getRoomCenterY(),
       ROOM_WIDTH + 28,
       ROOM_HEIGHT + 28,
       0x000000,
       0,
     );
     this.backdropInnerFrame = this.add.rectangle(
-      ROOM_ORIGIN_X + ROOM_WIDTH / 2,
-      ROOM_ORIGIN_Y + ROOM_HEIGHT / 2,
+      this.getRoomCenterX(),
+      this.getRoomCenterY(),
       ROOM_WIDTH + 38,
       ROOM_HEIGHT + 38,
       0x000000,
@@ -280,9 +317,37 @@ export class SceneWorld extends Phaser.Scene {
     this.updateBackdropPalette();
   }
 
+  private createPauseOverlay(): void {
+    const overlay = this.add.container(this.getRoomCenterX(), this.getRoomCenterY());
+    const panel = this.add.rectangle(0, 0, 470, 172, 0x09030f, 0.9);
+    panel.setStrokeStyle(4, 0xd8ad53, 0.95);
+    const title = this.add.text(0, -24, 'PAUSE', {
+      fontFamily: 'Georgia',
+      fontSize: '52px',
+      color: '#f8e9b8',
+      stroke: '#4b2200',
+      strokeThickness: 8,
+    }).setOrigin(0.5);
+    const hint = this.add.text(0, 34, 'START POUR REPRENDRE', {
+      fontFamily: 'Trebuchet MS',
+      fontSize: '24px',
+      color: '#f3dfaa',
+      stroke: '#000000',
+      strokeThickness: 5,
+    }).setOrigin(0.5);
+
+    overlay.add([panel, title, hint]);
+    overlay.setDepth(400);
+    overlay.setVisible(false);
+    this.pauseOverlay = overlay;
+  }
+
   private updateBackdropPalette(): void {
     this.cameras.main.setBackgroundColor(this.currentPalette.background);
-    this.backdropFill?.setFillStyle(this.currentPalette.backdropFill, 1);
+    this.backdropFill?.setFillStyle(
+      this.layoutState.mode === 'mobile-portrait' ? this.currentPalette.roomFloor : this.currentPalette.backdropFill,
+      1,
+    );
     this.backdropOuterFrame?.setFillStyle(0x000000, 0);
     this.backdropInnerFrame?.setFillStyle(0x000000, 0);
   }
@@ -291,7 +356,7 @@ export class SceneWorld extends Phaser.Scene {
     this.currentWorldDefinition.rooms.forEach((roomDefinition) => {
       const roomKey = this.roomKey(roomDefinition.coord);
       const roomModel = this.worldModel.getRoom(roomDefinition.coord);
-      const maze = new MazeGrid(roomDefinition.maze, this.currentTuning.tileSize, new Phaser.Math.Vector2(ROOM_ORIGIN_X, ROOM_ORIGIN_Y));
+      const maze = new MazeGrid(roomDefinition.maze, this.currentTuning.tileSize, new Phaser.Math.Vector2(this.roomOriginX, this.roomOriginY));
       maze.setLockOpened(roomModel.lockOpened);
       this.roomStateByKey.set(roomKey, {
         maze,
@@ -375,6 +440,7 @@ export class SceneWorld extends Phaser.Scene {
         ENEMY_COLORS[index],
         profiles[index],
         new Phaser.Math.Vector2(index % 2 === 0 ? -2 : 16, index < 2 ? -2 : 16),
+        this.currentTuning.enemyDecisionMistakeChance,
       );
       enemy.warningAura.setDepth(17);
       enemy.warningOverlay.setDepth(19);
@@ -395,8 +461,8 @@ export class SceneWorld extends Phaser.Scene {
     this.activeMaze = roomState.maze;
 
     this.activeRoomFrame = this.add.rectangle(
-      ROOM_ORIGIN_X + ROOM_WIDTH / 2,
-      ROOM_ORIGIN_Y + ROOM_HEIGHT / 2,
+      this.getRoomCenterX(),
+      this.getRoomCenterY(),
       ROOM_WIDTH,
       ROOM_HEIGHT,
       this.currentPalette.roomFloor,
@@ -473,6 +539,7 @@ export class SceneWorld extends Phaser.Scene {
         spawn.tileY,
         new Phaser.Math.Vector2(index % 2 === 0 ? -2 : 16, index < 2 ? -2 : 16),
       );
+      enemy.setDecisionMistakeChance(this.currentTuning.enemyDecisionMistakeChance);
       if (defeatedInRoom) {
         return;
       }
@@ -527,10 +594,8 @@ export class SceneWorld extends Phaser.Scene {
 
     if (!this.gameStarted) {
       const startDirection = this.getRequestedDirection();
-      if (startDirection === 'left') {
-        this.startGameplay('left');
-      } else if (startDirection === 'right') {
-        this.startGameplay('right');
+      if (startDirection) {
+        this.startGameplay(startDirection);
       }
       return;
     }
@@ -555,6 +620,33 @@ export class SceneWorld extends Phaser.Scene {
     }
   }
 
+  private handlePauseToggle(): void {
+    const pausePressed = this.isPauseTogglePressed();
+
+    if (
+      pausePressed
+      && !this.pauseTogglePressedLastFrame
+      && this.gameStarted
+      && !this.lifePauseInProgress
+      && !this.roomTransitionInProgress
+    ) {
+      this.manualPauseActive = !this.manualPauseActive;
+      this.pauseOverlay?.setVisible(this.manualPauseActive);
+      this.lastMoveToneAt = this.time.now;
+    }
+
+    this.pauseTogglePressedLastFrame = pausePressed;
+  }
+
+  private isPauseTogglePressed(): boolean {
+    const pad = getActiveGamepad(this.input);
+    if (!pad) {
+      return false;
+    }
+
+    return pad.isButtonDown(9);
+  }
+
   private getRequestedDirection(): Direction | null {
     if (this.cursors.left.isDown) {
       return 'left';
@@ -567,6 +659,11 @@ export class SceneWorld extends Phaser.Scene {
     }
     if (this.cursors.down.isDown) {
       return 'down';
+    }
+
+    const touchDirection = getTouchDirection();
+    if (touchDirection) {
+      return touchDirection;
     }
 
     const pad = getActiveGamepad(this.input);
@@ -850,16 +947,23 @@ export class SceneWorld extends Phaser.Scene {
     const worldNumber = this.currentWorldNumber;
     const roomsWithGoal = this.worldModel.rooms.map((room) => room.goalCollected);
     const roomsUnlocked = this.worldModel.rooms.map((room) => room.lockOpened);
-    const virtueIconKey = VIRTUE_ICON_BY_NAME[this.currentWorldDefinition.virtueName as (typeof WORLD_VIRTUES)[number]] ?? GOAL_ICON_KEYS[0];
-    this.hud.render(
-      this.worldModel.progress,
-      this.player.gauges,
+    setHudSnapshot({
+      score: this.worldModel.progress.score,
+      lives: this.worldModel.progress.lives,
+      gauges: { ...this.player.gauges },
+      gaugeIcons: {
+        sword: this.magicSwordKillsRemaining > 0 ? '/icons/magic-sword.png' : '/icons/sword.png',
+        life: this.lifeDrainMultiplier < 1 ? '/icons/golden-apple.png' : '/icons/apple.png',
+        light: this.lightDrainMultiplier < 1 ? '/icons/golden-torch.png' : '/icons/torch.png',
+      },
       worldNumber,
-      virtueIconKey,
-      this.worldModel.currentRoom,
+      virtueName: this.currentWorldDefinition.virtueName,
+      virtueIconKey: VIRTUE_ICON_BY_NAME[this.currentWorldDefinition.virtueName as (typeof WORLD_VIRTUES)[number]] ?? GOAL_ICON_KEYS[0],
+      currentRoom: this.worldModel.currentRoom,
       roomsWithGoal,
       roomsUnlocked,
-    );
+      hasMagicBoot: this.worldModel.progress.hasMagicBoot,
+    });
   }
 
   private tickMoveAudio(): void {
@@ -884,7 +988,11 @@ export class SceneWorld extends Phaser.Scene {
       this.time.delayedCall(700, () => {
         this.lifePauseInProgress = false;
         this.audioManager.playEvent('gameover');
-        this.scene.start('gameover', { score: this.worldModel.progress.score });
+        this.scene.start('gameover', {
+          score: this.worldModel.progress.score,
+          victory: false,
+          worldReached: this.currentWorldNumber,
+        });
       });
       return;
     }
@@ -1183,14 +1291,14 @@ export class SceneWorld extends Phaser.Scene {
   private showWorldTitleCard(onComplete?: () => void): void {
     const overlay = this.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2);
     const blackout = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 1);
-    const worldLabel = this.add.text(0, -150, `Monde ${this.currentWorldNumber}`, {
+    const worldLabel = this.add.text(0, -150, `Donjon ${this.currentWorldNumber}`, {
       fontFamily: 'Trebuchet MS',
       fontSize: '46px',
       color: '#f5e7b8',
       stroke: '#000000',
       strokeThickness: 8,
     }).setOrigin(0.5);
-    const virtueLabel = this.add.text(0, -82, `Le ${this.currentWorldDefinition.virtueName.toLowerCase()}`, {
+    const virtueLabel = this.add.text(0, -82, this.currentWorldDefinition.virtueName, {
       fontFamily: 'Trebuchet MS',
       fontSize: '58px',
       color: '#fff6d6',
@@ -1229,32 +1337,114 @@ export class SceneWorld extends Phaser.Scene {
   }
 
   private buildWorldTuning(worldNumber: number): TuningDefinition {
-    const level = Math.max(0, worldNumber - 1);
-    const enemySpeedMultiplier = Math.min(1.4, 1 + (level * 0.045));
-    const drainMultiplier = Math.min(1.3, 1 + (level * 0.03));
-    const swordDurationMultiplier = Math.max(0.72, 1 - (level * 0.035));
-    const scoreMultiplier = 1 + (level * 0.08);
+    const difficultyOffset = Phaser.Math.Clamp(
+      worldNumber - BASELINE_DIFFICULTY_WORLD,
+      MIN_DIFFICULTY_OFFSET,
+      MAX_DIFFICULTY_OFFSET,
+    );
+    const enemyDecisionMistakeChance = Phaser.Math.Clamp(0.18 - ((worldNumber - 1) * 0.012), 0.04, 0.18);
+    const enemySpeedMultiplier = Phaser.Math.Clamp(1 + (difficultyOffset * 0.045), 0.73, 1.5);
+    const drainMultiplier = Phaser.Math.Clamp(1 + (difficultyOffset * 0.03), 0.82, 1.33);
+    const swordDrainMultiplier = Phaser.Math.Clamp(1 + (difficultyOffset * 0.028), 0.84, 1.31);
+    const swordDurationMultiplier = Phaser.Math.Clamp(1 - (difficultyOffset * 0.035), 0.8, 1.21);
+    const scoreMultiplier = Phaser.Math.Clamp(1 + (difficultyOffset * 0.08), 0.7, 1.88);
 
     return {
       ...TUNING,
       enemySpeed: Math.round(TUNING.enemySpeed * enemySpeedMultiplier),
       vulnerableEnemySpeed: Math.round(TUNING.vulnerableEnemySpeed * enemySpeedMultiplier),
       respawnEnemySpeed: Math.round(TUNING.respawnEnemySpeed * enemySpeedMultiplier),
+      enemyDecisionMistakeChance: Number(enemyDecisionMistakeChance.toFixed(3)),
       lifeDrainPerSecond: Number((TUNING.lifeDrainPerSecond * drainMultiplier).toFixed(2)),
       lightDrainPerSecond: Number((TUNING.lightDrainPerSecond * drainMultiplier).toFixed(2)),
+      swordDrainPerSecond: Number((TUNING.swordDrainPerSecond * swordDrainMultiplier).toFixed(2)),
       swordDurationMs: Math.round(TUNING.swordDurationMs * swordDurationMultiplier),
       score: {
-        keyPickup: Math.round(TUNING.score.keyPickup * scoreMultiplier),
-        powerUpPickup: Math.round(TUNING.score.powerUpPickup * scoreMultiplier),
-        superPowerUpPickup: Math.round(TUNING.score.superPowerUpPickup * scoreMultiplier),
-        enemyCaptured: Math.round(TUNING.score.enemyCaptured * scoreMultiplier),
-        cageOpened: Math.round(TUNING.score.cageOpened * scoreMultiplier),
-        worldComplete: Math.round(TUNING.score.worldComplete * scoreMultiplier),
+        keyPickup: roundScoreToTen(TUNING.score.keyPickup * scoreMultiplier),
+        powerUpPickup: roundScoreToTen(TUNING.score.powerUpPickup * scoreMultiplier),
+        superPowerUpPickup: roundScoreToTen(TUNING.score.superPowerUpPickup * scoreMultiplier),
+        enemyCaptured: roundScoreToTen(TUNING.score.enemyCaptured * scoreMultiplier),
+        cageOpened: roundScoreToTen(TUNING.score.cageOpened * scoreMultiplier),
+        worldComplete: roundScoreToTen(TUNING.score.worldComplete * scoreMultiplier),
       },
     };
   }
 
   private getWorldPalette(worldNumber: number): WorldPalette {
     return WORLD_PALETTES[(worldNumber - 1) % WORLD_PALETTES.length];
+  }
+
+  private applyLayoutState(layoutState: GameLayoutState): void {
+    const dx = layoutState.roomOriginX - this.roomOriginX;
+    const dy = layoutState.roomOriginY - this.roomOriginY;
+    this.layoutState = layoutState;
+    this.roomOriginX = layoutState.roomOriginX;
+    this.roomOriginY = layoutState.roomOriginY;
+
+    if (dx !== 0 || dy !== 0) {
+      this.roomStateByKey.forEach(({ maze }) => maze.setOrigin(this.roomOriginX, this.roomOriginY));
+      this.shiftBackdrop(dx, dy);
+      this.shiftRoomContents(dx, dy);
+      this.shiftActor(this.player.sprite, dx, dy);
+      this.enemies.forEach((enemy) => {
+        this.shiftActor(enemy.sprite, dx, dy);
+        this.shiftActor(enemy.warningAura, dx, dy);
+        this.shiftActor(enemy.warningOverlay, dx, dy);
+      });
+    }
+
+    this.updateCameraForLayout();
+    this.renderHud();
+  }
+
+  private shiftBackdrop(dx: number, dy: number): void {
+    if (this.backdropOuterFrame) {
+      this.backdropOuterFrame.setPosition(this.backdropOuterFrame.x + dx, this.backdropOuterFrame.y + dy);
+    }
+    if (this.backdropInnerFrame) {
+      this.backdropInnerFrame.setPosition(this.backdropInnerFrame.x + dx, this.backdropInnerFrame.y + dy);
+    }
+    if (this.pauseOverlay) {
+      this.pauseOverlay.setPosition(this.pauseOverlay.x + dx, this.pauseOverlay.y + dy);
+    }
+  }
+
+  private shiftRoomContents(dx: number, dy: number): void {
+    this.roomLayer.iterate((child: Phaser.GameObjects.GameObject) => {
+      this.shiftActor(child as Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Transform, dx, dy);
+      return true;
+    });
+  }
+
+  private shiftActor(
+    object: Phaser.GameObjects.Components.Transform | undefined,
+    dx: number,
+    dy: number,
+  ): void {
+    if (!object) {
+      return;
+    }
+
+    object.x += dx;
+    object.y += dy;
+  }
+
+  private getRoomCenterX(): number {
+    return this.roomOriginX + ROOM_WIDTH / 2;
+  }
+
+  private getRoomCenterY(): number {
+    return this.roomOriginY + ROOM_HEIGHT / 2;
+  }
+
+  private updateCameraForLayout(): void {
+    const fitZoom = Math.min(
+      GAME_WIDTH / ROOM_WIDTH,
+      GAME_HEIGHT / ROOM_HEIGHT,
+    );
+    const zoom = this.layoutState.mode === 'mobile-portrait' ? fitZoom * 0.985 : fitZoom * 0.96;
+
+    this.cameras.main.setZoom(zoom);
+    this.cameras.main.centerOn(this.getRoomCenterX(), this.getRoomCenterY());
   }
 }

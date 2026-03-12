@@ -1,1 +1,0 @@
-:root{color-scheme:dark;--bg-top: #150b29;--bg-bottom: #04020b;--frame: #f2d36b}*{box-sizing:border-box}body{background:radial-gradient(circle at top,rgba(157,114,255,.18),transparent 30%),linear-gradient(180deg,var(--bg-top),var(--bg-bottom))}canvas{display:block;margin:0 auto}

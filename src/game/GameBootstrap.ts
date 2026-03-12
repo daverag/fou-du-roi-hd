@@ -7,7 +7,7 @@ import { SceneWorld } from './scenes/SceneWorld';
 export class GameBootstrap {
   readonly game: Phaser.Game;
 
-  constructor(parent: string) {
+  constructor(parent: string | HTMLElement) {
     this.game = new Phaser.Game({
       type: Phaser.AUTO,
       parent,
@@ -27,5 +27,9 @@ export class GameBootstrap {
         antialias: true,
       },
     });
+  }
+
+  refreshScale(): void {
+    this.game.scale.refresh();
   }
 }

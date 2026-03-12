@@ -143,6 +143,10 @@ export class MazeGrid {
     this.lockOpened = lockOpened;
   }
 
+  setOrigin(x: number, y: number): void {
+    this.origin.set(x, y);
+  }
+
   findNextAnchorTile(tileX: number, tileY: number, direction: Direction): Phaser.Math.Vector2 | null {
     return this.findNextTravelTarget(tileX, tileY, direction, false);
   }

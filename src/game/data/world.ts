@@ -1,15 +1,16 @@
+import { ENABLE_SYMMETRIC_LAYOUTS } from '../featureFlags';
 import type { MazeCellValue, MazeDefinition, PickupDefinition, PowerUpType, RoomDefinition, SpawnDefinition, SuperPowerUpType, WorldDefinition } from '../types';
 
 export const WORLD_VIRTUES = [
-  'Courage',
-  'Truth',
-  'Honour',
-  'Fidelity',
-  'Discipline',
-  'Hospitality',
-  'Self Reliance',
-  'Industriousness',
-  'Perseverance',
+  'Le courage',
+  'La vérité',
+  "L'honneur",
+  'La fidélité',
+  'La discipline',
+  "L'hospitalité",
+  "L'autonomie",
+  "L'assiduité",
+  'La persévérance',
 ] as const;
 
 function parseMazeRow(row: string): MazeCellValue[] {
@@ -92,6 +93,10 @@ const DOOR_TILES = {
   left: { tileX: 0, tileY: 7 },
   right: { tileX: 18, tileY: 7 },
 } as const;
+const SYMMETRIC_LAYOUT_WIDTH = 19;
+const SYMMETRIC_LAYOUT_HEIGHT = 15;
+const SYMMETRIC_CENTER_X = 9;
+const SYMMETRIC_CENTER_Y = 7;
 
 const PLAYER_SPAWNS = Array.from({ length: 9 }, () => ({ tileX: 9, tileY: 9 }));
 
@@ -144,8 +149,64 @@ function isWalkable(value: MazeCellValue): boolean {
   return value === 0 || value === 'G';
 }
 
+function createEmptySymmetricLayout(): MazeCellValue[][] {
+  return Array.from({ length: SYMMETRIC_LAYOUT_HEIGHT }, (_, y) =>
+    Array.from({ length: SYMMETRIC_LAYOUT_WIDTH }, (_, x) => {
+      if (y === 0 || y === SYMMETRIC_LAYOUT_HEIGHT - 1 || x === 0 || x === SYMMETRIC_LAYOUT_WIDTH - 1) {
+        return 1;
+      }
+
+      return 0;
+    }),
+  );
+}
+
+function setMirroredCell(cells: MazeCellValue[][], x: number, y: number, value: MazeCellValue): void {
+  const mirroredPositions = [
+    [x, y],
+    [SYMMETRIC_LAYOUT_WIDTH - 1 - x, y],
+    [x, SYMMETRIC_LAYOUT_HEIGHT - 1 - y],
+    [SYMMETRIC_LAYOUT_WIDTH - 1 - x, SYMMETRIC_LAYOUT_HEIGHT - 1 - y],
+  ] as const;
+
+  for (const [targetX, targetY] of mirroredPositions) {
+    cells[targetY][targetX] = value;
+  }
+}
+
+function createSymmetricMazeLayout(layoutSeed: number): MazeCellValue[][] {
+  const cells = createEmptySymmetricLayout();
+
+  for (let tileY = 1; tileY < SYMMETRIC_LAYOUT_HEIGHT - 1; tileY += 2) {
+    for (let tileX = 1; tileX < SYMMETRIC_LAYOUT_WIDTH - 1; tileX += 1) {
+      cells[tileY][tileX] = 0;
+    }
+  }
+
+  for (let tileY = 1; tileY <= 5; tileY += 2) {
+    for (let tileX = 1; tileX <= 7; tileX += 2) {
+      const shouldOpenVertical = ((layoutSeed + tileX * 3 + tileY * 5) % 4) !== 0;
+      if (shouldOpenVertical) {
+        setMirroredCell(cells, tileX, tileY + 1, 0);
+      }
+    }
+  }
+
+  for (let tileY = 1; tileY < SYMMETRIC_LAYOUT_HEIGHT - 1; tileY += 1) {
+    cells[tileY][SYMMETRIC_CENTER_X] = 0;
+  }
+
+  cells[SYMMETRIC_CENTER_Y][SYMMETRIC_CENTER_X - 1] = 'L';
+  cells[SYMMETRIC_CENTER_Y][SYMMETRIC_CENTER_X] = 'G';
+  cells[SYMMETRIC_CENTER_Y][SYMMETRIC_CENTER_X + 1] = 'L';
+
+  return cells;
+}
+
 function createRoomMaze(x: number, y: number, layoutIndex: number): MazeDefinition {
-  const cells = ROOM_LAYOUTS[layoutIndex].map((row) => [...row]);
+  const cells = ENABLE_SYMMETRIC_LAYOUTS
+    ? createSymmetricMazeLayout(layoutIndex + y * 3 + x)
+    : ROOM_LAYOUTS[layoutIndex].map((row) => [...row]);
   const doors = {
     up: y > 0,
     down: y < 2,
@@ -172,8 +233,8 @@ function createRoomMaze(x: number, y: number, layoutIndex: number): MazeDefiniti
   }
 
   return {
-    width: ROOM_LAYOUTS[layoutIndex][0].length,
-    height: ROOM_LAYOUTS[layoutIndex].length,
+    width: cells[0].length,
+    height: cells.length,
     cells,
     doors,
   };
