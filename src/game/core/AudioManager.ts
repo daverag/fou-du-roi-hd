@@ -19,8 +19,6 @@ export class AudioManager {
   private enabled = false;
 
   unlock(): void {
-    ensurePhaserSoundReady(this.scene);
-
     if (this.context) {
       if (this.context.state === 'suspended') {
         void this.context.resume();
@@ -196,25 +194,7 @@ export class AudioManager {
       return false;
     }
 
-    ensurePhaserSoundReady(this.scene);
-    return this.scene.sound.play(key);
-  }
-}
-
-function ensurePhaserSoundReady(scene: Phaser.Scene): void {
-  const soundManager = scene.sound as Phaser.Sound.BaseSoundManager & {
-    unlock?: () => void;
-    context?: AudioContext;
-    locked?: boolean;
-  };
-
-  if (soundManager.locked && typeof soundManager.unlock === 'function') {
-    soundManager.unlock();
-  }
-
-  if (soundManager.context && soundManager.context.state === 'suspended') {
-    void soundManager.context.resume().catch(() => {
-      // Ignore resume failures; caller may fall back or retry on next interaction.
-    });
+    this.scene.sound.play(key);
+    return true;
   }
 }

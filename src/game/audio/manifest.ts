@@ -22,7 +22,6 @@ export const AUDIO_MANIFEST: AudioManifest = {
     apple: ['/sfx/eat.mp3'],
     torch: ['/sfx/powerup.mp3'],
     sword: ['/sfx/powerup.mp3'],
-    enemy: ['/sfx/eat.mp3'],
     win: ['/sfx/powerup.mp3'],
     hurt: ['/sfx/die.mp3'],
     gameover: ['/sfx/die.mp3'],
