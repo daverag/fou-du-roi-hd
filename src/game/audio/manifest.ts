@@ -26,7 +26,7 @@ export const AUDIO_MANIFEST: AudioManifest = {
     enemy: ['/sfx/eat.mp3'],
     win: ['/sfx/powerup.mp3'],
     hurt: ['/sfx/die.mp3'],
-    gameover: ['/sfx/die.mp3'],
+    gameover: ['/sfx/gameover.mp3'],
     start: ['/sfx/start.mp3'],
   },
   retro: {
