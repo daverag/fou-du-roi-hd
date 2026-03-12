@@ -184,8 +184,8 @@ function mirrorLeftHalf(leftHalf: string, center: string): string {
 }
 
 function createSymmetricMazeLayout(layoutSeed: number): MazeCellValue[][] {
-  const topHalf = SYMMETRIC_TOP_HALF_LAYOUTS[layoutSeed % SYMMETRIC_TOP_HALF_LAYOUTS.length];
-  const centerRow = SYMMETRIC_CENTER_ROW_LAYOUTS[layoutSeed % SYMMETRIC_CENTER_ROW_LAYOUTS.length];
+  const topHalf = SYMMETRIC_TOP_HALF_LAYOUTS[Math.abs(layoutSeed) % SYMMETRIC_TOP_HALF_LAYOUTS.length];
+  const centerRow = SYMMETRIC_CENTER_ROW_LAYOUTS[Math.abs(layoutSeed * 7 + 3) % SYMMETRIC_CENTER_ROW_LAYOUTS.length];
   const rows: string[] = ['1111111111111111111'];
 
   for (const sourceRow of topHalf) {
@@ -393,7 +393,7 @@ function shuffleArray<T>(values: T[]): T[] {
 }
 
 function buildSymmetricLayoutOrder(): number[] {
-  return Array.from({ length: 9 }, () => Math.floor(Math.random() * SYMMETRIC_TOP_HALF_LAYOUTS.length));
+  return Array.from({ length: 9 }, () => Math.floor(Math.random() * 1_000_000));
 }
 
 function buildRooms(): RoomDefinition[] {
