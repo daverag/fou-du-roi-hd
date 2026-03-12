@@ -19,6 +19,8 @@ export class AudioManager {
   private enabled = false;
 
   unlock(): void {
+    ensurePhaserSoundReady(this.scene);
+
     if (this.context) {
       if (this.context.state === 'suspended') {
         void this.context.resume();
@@ -67,12 +69,12 @@ export class AudioManager {
   }
 
   playEvent(eventName: string): void {
-    if (!this.enabled) {
+    const soundMode = getGameSettings().soundMode;
+    if (this.playAssetCue(soundMode, eventName as AudioCueName)) {
       return;
     }
 
-    const soundMode = getGameSettings().soundMode;
-    if (this.playAssetCue(soundMode, eventName as AudioCueName)) {
+    if (!this.enabled) {
       return;
     }
 
@@ -113,12 +115,16 @@ export class AudioManager {
   }
 
   tickMove(speedRatio: number): void {
-    if (!this.context || !this.enabled || speedRatio <= 0) {
+    if (speedRatio <= 0) {
       return;
     }
 
     const soundMode = getGameSettings().soundMode;
     if (this.playAssetCue(soundMode, 'step')) {
+      return;
+    }
+
+    if (!this.context || !this.enabled) {
       return;
     }
 
@@ -194,7 +200,25 @@ export class AudioManager {
       return false;
     }
 
-    this.scene.sound.play(key);
-    return true;
+    ensurePhaserSoundReady(this.scene);
+    return this.scene.sound.play(key);
+  }
+}
+
+function ensurePhaserSoundReady(scene: Phaser.Scene): void {
+  const soundManager = scene.sound as Phaser.Sound.BaseSoundManager & {
+    unlock?: () => void;
+    context?: AudioContext;
+    locked?: boolean;
+  };
+
+  if (soundManager.locked && typeof soundManager.unlock === 'function') {
+    soundManager.unlock();
+  }
+
+  if (soundManager.context && soundManager.context.state === 'suspended') {
+    void soundManager.context.resume().catch(() => {
+      // Ignore resume failures; caller may fall back or retry on next interaction.
+    });
   }
 }
