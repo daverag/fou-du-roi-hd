@@ -200,7 +200,7 @@ export class SceneTitle extends Phaser.Scene {
       fontFamily: 'Courier New',
       fontSize: '32px',
       color: '#fff7c5',
-      lineSpacing: 4,
+      lineSpacing: 1,
     }).setOrigin(0.5, 0);
   }
 
