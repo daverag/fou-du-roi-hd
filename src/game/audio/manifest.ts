@@ -19,6 +19,7 @@ export type AudioManifest = Record<SoundMode, Partial<Record<AudioCueName, strin
 export const AUDIO_MANIFEST: AudioManifest = {
   modern: {
     key: ['/sfx/key.mp3'],
+    apple: ['/sfx/eat.mp3'],
     torch: ['/sfx/powerup.mp3'],
     sword: ['/sfx/powerup.mp3'],
     enemy: ['/sfx/eat.mp3'],
