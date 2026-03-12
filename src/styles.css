@@ -1,7 +1,7 @@
 :root {
   color-scheme: dark;
-  --bg-top: #1b102c;
-  --bg-bottom: #05030d;
+  --bg-top: #000000;
+  --bg-bottom: #000000;
   --frame: #f2d36b;
   --touch-size: 82px;
   --touch-wide: 104px;
@@ -30,9 +30,7 @@ body,
 }
 
 body {
-  background:
-    radial-gradient(circle at top, rgba(157, 114, 255, 0.18), transparent 30%),
-    linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+  background: #000000;
   overflow: hidden;
   touch-action: manipulation;
 }

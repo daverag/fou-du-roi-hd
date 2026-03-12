@@ -13,7 +13,7 @@ export class GameBootstrap {
       parent,
       width: GAME_WIDTH,
       height: GAME_HEIGHT,
-      backgroundColor: '#090512',
+      backgroundColor: '#000000',
       input: {
         gamepad: true,
       },

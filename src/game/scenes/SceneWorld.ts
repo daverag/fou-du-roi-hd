@@ -12,6 +12,7 @@ import { getGameLayoutState, subscribeToGameLayout, type GameLayoutState } from 
 import { WorldModel } from '../model/WorldModel';
 import { clearHudSnapshot, setHudSnapshot } from '../ui/hudState';
 import { getActiveGamepad } from '../utils/getActiveGamepad';
+import { readGamepadDirection } from '../utils/readGamepadDirection';
 import type { Direction, PickupDefinition, PowerUpType, RoomCoord, SpawnDefinition, SuperPowerUpType, TuningDefinition, WorldDefinition, WorldProgress } from '../types';
 
 type PickupSprite = Phaser.GameObjects.Shape | Phaser.GameObjects.Container | Phaser.GameObjects.Image;
@@ -671,41 +672,23 @@ export class SceneWorld extends Phaser.Scene {
       return null;
     }
 
-    let direction: Direction | null = null;
+    const gamepadDirection = readGamepadDirection(pad, SceneWorld.GAMEPAD_AXIS_THRESHOLD);
 
-    if (pad.left) {
-      direction = 'left';
-    } else if (pad.right) {
-      direction = 'right';
-    } else if (pad.up) {
-      direction = 'up';
-    } else if (pad.down) {
-      direction = 'down';
-    }
-
-    if (direction) {
-      this.logGamepadDirection(direction, pad);
-      return direction;
-    }
-
-    const horizontal = pad.leftStick.x;
-    const vertical = pad.leftStick.y;
-    const threshold = SceneWorld.GAMEPAD_AXIS_THRESHOLD;
-
-    if (Math.abs(horizontal) >= Math.abs(vertical) && Math.abs(horizontal) >= threshold) {
-      direction = horizontal < 0 ? 'left' : 'right';
-      this.logGamepadDirection(direction, pad, { horizontal, vertical });
-      return direction;
-    }
-
-    if (Math.abs(vertical) >= threshold) {
-      direction = vertical < 0 ? 'up' : 'down';
-      this.logGamepadDirection(direction, pad, { horizontal, vertical });
-      return direction;
+    if (gamepadDirection.direction) {
+      this.logGamepadDirection(gamepadDirection.direction, pad, {
+        horizontal: gamepadDirection.horizontal,
+        vertical: gamepadDirection.vertical,
+      });
+      return gamepadDirection.direction;
     }
 
     if (this.lastLoggedGamepadDirection !== null) {
-      console.info('[gamepad][world] neutral', { index: pad.index, id: pad.id, horizontal, vertical });
+      console.info('[gamepad][world] neutral', {
+        index: pad.index,
+        id: pad.id,
+        horizontal: gamepadDirection.horizontal,
+        vertical: gamepadDirection.vertical,
+      });
       this.lastLoggedGamepadDirection = null;
     }
 
