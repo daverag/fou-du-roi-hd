@@ -200,7 +200,7 @@ export class SceneTitle extends Phaser.Scene {
       fontFamily: 'Courier New',
       fontSize: '32px',
       color: '#fff7c5',
-      lineSpacing: 12,
+      lineSpacing: 4,
     }).setOrigin(0.5, 0);
   }
 
@@ -233,13 +233,13 @@ export class SceneTitle extends Phaser.Scene {
 
   private async loadHighScores(): Promise<void> {
     try {
-      const scores = await fetchHighScores(6);
+      const scores = await fetchHighScores(5);
       this.highScoreBrokenIcon?.setText('');
       this.renderHighScores(scores);
     } catch {
       this.highScoreStatusText?.setText('');
       this.highScoreBrokenIcon?.setText('📡');
-      this.highScoreText?.setText('1. ------  000000\n2. ------  000000\n3. ------  000000\n4. ------  000000\n5. ------  000000\n6. ------  000000');
+      this.highScoreText?.setText('1. ------  000000\n2. ------  000000\n3. ------  000000\n4. ------  000000\n5. ------  000000');
     }
   }
 
@@ -251,11 +251,11 @@ export class SceneTitle extends Phaser.Scene {
     this.highScoreStatusText.setText('');
 
     if (scores.length === 0) {
-      this.highScoreText.setText('1. ------  000000\n2. ------  000000\n3. ------  000000\n4. ------  000000\n5. ------  000000\n6. ------  000000');
+      this.highScoreText.setText('1. ------  000000\n2. ------  000000\n3. ------  000000\n4. ------  000000\n5. ------  000000');
       return;
     }
 
-    const lines = Array.from({ length: 6 }, (_, index) => {
+    const lines = Array.from({ length: 5 }, (_, index) => {
       const entry = scores[index];
       if (!entry) {
         return `${index + 1}. ------  000000`;
