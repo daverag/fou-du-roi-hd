@@ -19,6 +19,14 @@ let rootElement: HTMLDivElement | null = null;
 let activeButton: HTMLElement | null = null;
 let activePointerId: number | null = null;
 
+function rumbleTouchDpad(): void {
+  if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') {
+    return;
+  }
+
+  navigator.vibrate(12);
+}
+
 export function mountTouchControls(parent: HTMLElement): void {
   if (rootElement) {
     return;
@@ -39,6 +47,9 @@ export function mountTouchControls(parent: HTMLElement): void {
   });
 
   const setDirection = (button: HTMLElement | null) => {
+    const previousDirection = activeButton?.dataset.direction ?? null;
+    const nextDirection = button?.dataset.direction ?? null;
+
     activeButton?.classList.remove('is-active');
     activeButton = button;
     if (!button) {
@@ -47,7 +58,11 @@ export function mountTouchControls(parent: HTMLElement): void {
     }
 
     button.classList.add('is-active');
-    state.direction = button.dataset.direction as Direction;
+    state.direction = nextDirection as Direction;
+
+    if (previousDirection !== nextDirection) {
+      rumbleTouchDpad();
+    }
   };
 
   rootElement.addEventListener('pointerdown', (event) => {
