@@ -3,12 +3,12 @@
   --bg-top: #000000;
   --bg-bottom: #000000;
   --frame: #f2d36b;
-  --touch-size: 82px;
+  --touch-size: clamp(58px, 16vw, 82px);
   --touch-wide: 104px;
-  --touch-gap: 10px;
-  --touch-core-width: 124px;
-  --touch-core-height: 64px;
-  --touch-arrow-size: 38px;
+  --touch-gap: clamp(6px, 2vw, 10px);
+  --touch-core-width: clamp(94px, 28vw, 124px);
+  --touch-core-height: clamp(46px, 14vw, 64px);
+  --touch-arrow-size: clamp(28px, 8vw, 38px);
   --touch-button-size: 56px;
   --hud-edge: rgba(242, 211, 107, 0.36);
   --hud-bg: rgba(10, 8, 19, 0.84);
@@ -697,7 +697,7 @@ canvas {
   display: none;
   width: min(100%, 320px);
   max-width: 100%;
-  grid-template-columns: minmax(0, 1fr) minmax(120px, var(--touch-core-width)) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--touch-core-width)) minmax(0, 1fr);
   grid-template-rows: var(--touch-size) var(--touch-core-height) var(--touch-size);
   gap: var(--touch-gap);
   grid-template-areas:
@@ -816,12 +816,12 @@ canvas {
 
 @media (max-width: 720px) {
   :root {
-    --touch-size: 74px;
+    --touch-size: clamp(54px, 15vw, 74px);
     --touch-wide: 92px;
-    --touch-gap: 8px;
-    --touch-core-width: 112px;
-    --touch-core-height: 56px;
-    --touch-arrow-size: 34px;
+    --touch-gap: clamp(5px, 1.8vw, 8px);
+    --touch-core-width: clamp(88px, 26vw, 112px);
+    --touch-core-height: clamp(42px, 13vw, 56px);
+    --touch-arrow-size: clamp(26px, 7.2vw, 34px);
     --touch-button-size: 50px;
   }
 }
@@ -833,15 +833,12 @@ canvas {
 
   .app-shell[data-layout-mode='mobile-portrait'] {
     display: grid;
-    grid-template-rows:
-      auto
-      minmax(0, 1fr)
-      calc((var(--touch-size) * 3) + (var(--touch-gap) * 2) + 40px + env(safe-area-inset-bottom));
-    gap: 8px;
+    grid-template-rows: minmax(0, 0.92fr) minmax(0, 1.38fr) minmax(0, 0.7fr);
+    gap: 4px;
     padding:
       max(6px, env(safe-area-inset-top))
       max(8px, env(safe-area-inset-right))
-      8px
+      max(6px, env(safe-area-inset-bottom))
       max(8px, env(safe-area-inset-left));
   }
 
@@ -849,9 +846,11 @@ canvas {
     display: none;
     position: relative;
     grid-row: 1;
-    padding: 8px;
+    min-height: 0;
+    height: 100%;
+    padding: 5px;
     border: 1px solid rgba(242, 211, 107, 0.46);
-    border-radius: 20px;
+    border-radius: 18px;
     background:
       linear-gradient(180deg, rgba(30, 17, 37, 0.96), rgba(12, 9, 23, 0.98)),
       radial-gradient(circle at 50% 0, rgba(151, 84, 50, 0.12), transparent 55%);
@@ -863,17 +862,20 @@ canvas {
 
   .app-shell[data-layout-mode='mobile-portrait'] .app-shell__hud.is-visible {
     display: grid;
-    gap: 8px;
+    grid-template-rows: auto minmax(0, 1fr);
+    align-content: stretch;
+    gap: 4px;
+    overflow: visible;
   }
 
   .app-shell[data-layout-mode='mobile-portrait'] .app-shell__settings-button {
-    top: 0;
-    right: 0;
+    top: -2px;
+    right: -2px;
     z-index: 6;
-    width: 46px;
-    height: 46px;
-    border-radius: 14px;
-    font-size: 24px;
+    width: 42px;
+    height: 42px;
+    border-radius: 13px;
+    font-size: 22px;
     box-shadow:
       0 10px 20px rgba(0, 0, 0, 0.2),
       inset 0 1px 0 rgba(255, 232, 173, 0.14);
@@ -881,18 +883,21 @@ canvas {
 
   .app-shell[data-layout-mode='mobile-portrait'] .mobile-hud__top-row {
     grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr) minmax(0, 0.92fr);
+    gap: 3px;
   }
 
   .app-shell[data-layout-mode='mobile-portrait'] .mobile-hud__top-row.has-boot {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr) minmax(0, 0.92fr) 48px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr) minmax(0, 0.92fr) 42px;
   }
 
   .app-shell[data-layout-mode='mobile-portrait'] .app-shell__viewport {
     grid-row: 2;
     min-height: 0;
+    height: 100%;
     display: grid;
     align-items: center;
     justify-items: center;
+    overflow: hidden;
   }
 
   .app-shell[data-layout-mode='mobile-portrait'] .app-shell__game {
@@ -907,16 +912,134 @@ canvas {
     display: grid;
     place-items: center;
     min-width: 0;
+    min-height: 0;
+    height: 100%;
     overflow: hidden;
-    border-radius: 22px;
+    border-radius: 18px;
     padding:
-      8px 6px
-      max(8px, env(safe-area-inset-bottom));
+      4px 6px
+      max(2px, env(safe-area-inset-bottom));
     background:
       linear-gradient(180deg, rgba(27, 16, 34, 0.98), rgba(8, 7, 18, 0.99)),
       radial-gradient(circle at 50% 0, rgba(173, 102, 56, 0.12), transparent 58%);
     box-shadow:
       0 14px 28px rgba(0, 0, 0, 0.24),
       inset 0 1px 0 rgba(255, 232, 173, 0.14);
+  }
+
+  .app-shell[data-layout-mode='mobile-portrait'] .mobile-hud__gauges {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    align-content: start;
+    overflow: visible;
+  }
+
+  .app-shell[data-layout-mode='mobile-portrait'] .touch-controls {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    padding: 8px 10px 10px;
+    grid-template-columns: minmax(0, 1fr) clamp(104px, 30vw, 146px) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) clamp(54px, 14vw, 78px) minmax(0, 1fr);
+    gap: clamp(4px, 1.6vw, 8px);
+    align-content: stretch;
+    align-items: stretch;
+    justify-items: stretch;
+  }
+
+  .app-shell[data-layout-mode='mobile-portrait'] .touch-controls::before {
+    inset: 8px 10px 10px;
+  }
+
+  .app-shell[data-layout-mode='mobile-portrait'] .touch-controls__button {
+    align-self: stretch;
+    justify-self: stretch;
+  }
+
+  .app-shell[data-layout-mode='mobile-portrait'] .touch-controls__button::after {
+    width: clamp(30px, 8.8vw, 42px);
+    height: clamp(30px, 8.8vw, 42px);
+  }
+}
+
+@media (max-width: 430px) and (orientation: portrait) {
+  .mobile-hud__metric {
+    border-radius: 14px;
+    padding: 5px 6px 4px;
+    gap: 4px;
+  }
+
+  .mobile-hud__metric--map {
+    padding: 4px;
+  }
+
+  .mobile-hud__metric--score {
+    gap: 2px;
+  }
+
+  .mobile-hud__value {
+    font-size: 15px;
+    letter-spacing: 0.02em;
+  }
+
+  .mobile-hud__world {
+    font-size: 9px;
+    line-height: 1.05;
+  }
+
+  .mobile-hud__world-header {
+    gap: 4px;
+  }
+
+  .mobile-hud__world-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .mobile-hud__lives {
+    gap: 2px;
+    min-height: 18px;
+  }
+
+  .mobile-hud__heart {
+    width: 18px;
+    height: 18px;
+  }
+
+  .mobile-hud__gauge {
+    border-radius: 14px;
+    padding: 4px 6px;
+    grid-template-columns: 20px minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .mobile-hud__gauge-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .mobile-hud__gauge-track {
+    height: 8px;
+  }
+
+  .mobile-hud__map {
+    gap: 3px;
+    padding: 1px;
+  }
+
+  .mobile-hud__map-cell {
+    border-radius: 4px;
+  }
+
+  .touch-controls {
+    width: 100%;
+    max-height: none;
+    padding: 6px 8px 8px;
+  }
+
+  .touch-controls::before {
+    inset: 6px 8px 8px;
   }
 }
